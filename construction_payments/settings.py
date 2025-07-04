@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +22,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-0^j371)oiprcn)tr+hnk8g$bhc^llq81zoq*9n7ptrd^*-m4ia'
+
+# Paystack API Keys (IMPORTANT: Use environment variables in production!)
+PAYSTACK_PUBLIC_KEY = os.environ.get("PAYSTACK_PUBLIC_KEY", "pk_test_8936a85a677a55a746f9ae9120e2aaa50d28698e") # <--- Replace with your test Public Key
+PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "sk_test_82759cb7609dc236dbcd5bf4312b5b57d3aa470b") # <--- Replace with your test Secret Key
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -34,6 +40,7 @@ INSTALLED_APPS = [
     'payments',
     'drf_yasg',
     'rest_framework.authtoken',
+    'corsheaders',
 
     'rest_framework',
     'django.contrib.admin',
@@ -55,7 +62,33 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # <--- ADD THIS LINE: For handling CORS
 ]
+
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Allow your React development server
+    "http://127.0.0.1:3000",  # Also allow 127.0.0.1 for consistency
+    # Add your production frontend URL here when deployed (e.g., "https://yourfrontend.com")
+]
+
+# If you need to allow all origins during very early development (NOT RECOMMENDED FOR PRODUCTION)
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOWED_ORIGINS = [] # Empty this list if CORS_ALLOW_ALL_ORIGINS is True
+
+# Allow specific headers if needed (e.g., Authorization for tokens)
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+    
 
 ROOT_URLCONF = 'construction_payments.urls'
 
@@ -145,3 +178,5 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
 }
+
+

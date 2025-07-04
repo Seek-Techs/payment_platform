@@ -1,0 +1,386 @@
+import React, { useState, useEffect, createContext, useContext } from 'react';
+
+// --- AuthContext: Manages authentication state globally ---
+const AuthContext = createContext(null);
+
+const AuthProvider = ({ children }) => {
+    const [token, setToken] = useState(localStorage.getItem('authToken'));
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true); // To check initial token validity
+
+    // Base URL for our Django backend API
+    const API_BASE_URL = 'http://127.0.0.1:8000/api';
+
+    // Function to fetch user details (optional, but good for dashboard)
+    const fetchUser = async (authToken) => {
+        if (!authToken) {
+            setUser(null);
+            return;
+        }
+        try {
+            // This is a placeholder. In a real app, you'd have a /api/user/me endpoint
+            // For now, we'll just set a dummy user or infer from token if possible
+            // For simplicity, we'll just assume if token exists, user is logged in
+            setUser({ username: 'Authenticated User' }); // Placeholder user
+        } catch (error) {
+            console.error('Failed to fetch user:', error);
+            setToken(null);
+            localStorage.removeItem('authToken');
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUser(token);
+    }, [token]);
+
+    const login = async (username, password) => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/login/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setToken(data.token);
+                localStorage.setItem('authToken', data.token);
+                await fetchUser(data.token); // Fetch user details upon successful login
+                return { success: true };
+            } else {
+                return { success: false, error: data.detail || 'Login failed' };
+            }
+        } catch (error) {
+            console.error('Network error during login:', error);
+            return { success: false, error: 'Network error or server unreachable.' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const register = async (username, email, password, password2) => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/register/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, email, password, password2 }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Our backend returns token on successful registration
+                setToken(data.token);
+                localStorage.setItem('authToken', data.token);
+                await fetchUser(data.token); // Fetch user details upon successful registration
+                return { success: true };
+            } else {
+                return { success: false, error: data.username || data.email || data.password || data.detail || 'Registration failed' };
+            }
+        } catch (error) {
+            console.error('Network error during registration:', error);
+            return { success: false, error: 'Network error or server unreachable.' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const logout = () => {
+        setToken(null);
+        localStorage.removeItem('authToken');
+        setUser(null);
+    };
+
+    return (
+        <AuthContext.Provider value={{ token, user, loading, login, register, logout, API_BASE_URL }}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+// --- Login Component ---
+const Login = ({ setCurrentPage }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const { login, loading } = useContext(AuthContext);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        const result = await login(username, password);
+        if (result.success) {
+            setCurrentPage('dashboard'); // Navigate to dashboard on success
+        } else {
+            setError(result.error);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Login</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="username">
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            id="username"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="password">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-300 ease-in-out"
+                        disabled={loading}
+                    >
+                        {loading ? 'Logging in...' : 'Login'}
+                    </button>
+                </form>
+                <p className="text-center text-gray-600 text-sm mt-6">
+                    Don't have an account?{' '}
+                    <button
+                        onClick={() => setCurrentPage('register')}
+                        className="text-blue-600 hover:text-blue-800 font-medium focus:outline-none"
+                    >
+                        Register
+                    </button>
+                </p>
+            </div>
+        </div>
+    );
+};
+
+// --- Register Component ---
+const Register = ({ setCurrentPage }) => {
+    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [password2, setPassword2] = useState('');
+    const [error, setError] = useState('');
+    const { register, loading } = useContext(AuthContext);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        const result = await register(username, email, password, password2);
+        if (result.success) {
+            setCurrentPage('dashboard'); // Navigate to dashboard on success
+        } else {
+            setError(result.error);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Register</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="reg-username">
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            id="reg-username"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="reg-email">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            id="reg-email"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="reg-password">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="reg-password"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="reg-password2">
+                            Confirm Password
+                        </label>
+                        <input
+                            type="password"
+                            id="reg-password2"
+                            className="shadow-sm appearance-none border rounded-md w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={password2}
+                            onChange={(e) => setPassword2(e.target.value)}
+                            required
+                        />
+                    </div>
+                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    <button
+                        type="submit"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-300 ease-in-out"
+                        disabled={loading}
+                    >
+                        {loading ? 'Registering...' : 'Register'}
+                    </button>
+                </form>
+                <p className="text-center text-gray-600 text-sm mt-6">
+                    Already have an account?{' '}
+                    <button
+                        onClick={() => setCurrentPage('login')}
+                        className="text-blue-600 hover:text-blue-800 font-medium focus:outline-none"
+                    >
+                        Login
+                    </button>
+                </p>
+            </div>
+        </div>
+    );
+};
+
+// --- Dashboard Component ---
+const Dashboard = ({ setCurrentPage }) => {
+    const { user, logout, token } = useContext(AuthContext);
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex flex-col items-center justify-center p-4 text-white">
+            <div className="bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg p-8 rounded-lg shadow-xl w-full max-w-2xl text-center">
+                <h2 className="text-4xl font-extrabold mb-4 animate-fade-in-down">
+                    Welcome, {user ? user.username : 'User'}!
+                </h2>
+                <p className="text-xl mb-8 animate-fade-in-up">
+                    Your Construction Payments Dashboard
+                </p>
+
+                <div className="space-y-4">
+                    <button
+                        onClick={() => setCurrentPage('payments')}
+                        className="w-full md:w-auto bg-white text-blue-700 hover:bg-blue-100 font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
+                    >
+                        View My Payments
+                    </button>
+                    <button
+                        onClick={() => setCurrentPage('upload-image')}
+                        className="w-full md:w-auto bg-white text-purple-700 hover:bg-purple-100 font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
+                    >
+                        Upload Site Image
+                    </button>
+                </div>
+
+                <button
+                    onClick={logout}
+                    className="mt-10 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
+                >
+                    Logout
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- Main App Component ---
+const App = () => {
+    const { token, loading } = useContext(AuthContext);
+    const [currentPage, setCurrentPage] = useState('login'); // Default to login page
+
+    useEffect(() => {
+        // If token exists and not loading, go to dashboard
+        if (!loading && token) {
+            setCurrentPage('dashboard');
+        } else if (!loading && !token) {
+            setCurrentPage('login'); // Ensure it's login if no token after loading
+        }
+    }, [token, loading]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+                <p className="ml-4 text-gray-700">Loading application...</p>
+            </div>
+        );
+    }
+
+    const renderPage = () => {
+        switch (currentPage) {
+            case 'login':
+                return <Login setCurrentPage={setCurrentPage} />;
+            case 'register':
+                return <Register setCurrentPage={setCurrentPage} />;
+            case 'dashboard':
+                return <Dashboard setCurrentPage={setCurrentPage} />;
+            // Future pages will go here (e.g., 'payments', 'upload-image')
+            default:
+                return <Login setCurrentPage={setCurrentPage} />;
+        }
+    };
+
+    return (
+        <div className="font-inter">
+            {/* Tailwind CSS CDN */}
+            <script src="https://cdn.tailwindcss.com"></script>
+            {/* Google Font: Inter */}
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+            <style>
+                {`
+                body { font-family: 'Inter', sans-serif; }
+                @keyframes fade-in-down {
+                    from { opacity: 0; transform: translateY(-20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fade-in-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in-down { animation: fade-in-down 0.8s ease-out forwards; }
+                .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards; }
+                `}
+            </style>
+            {renderPage()}
+        </div>
+    );
+};
+
+export default App; // Required for Canvas to render the component correctly

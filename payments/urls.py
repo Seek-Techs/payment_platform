@@ -1,7 +1,13 @@
 # payments/urls.py (for the 'payments' app)
 
 from django.urls import path
-from .views import PaymentListCreateAPIView, PaymentDetailAPIView, TransactionListAPIView, api_root
+from .views import (
+    api_root,
+    PaymentListCreateAPIView,
+    PaymentDetailAPIView,
+    TransactionListAPIView,
+    PaystackVerifyPaymentAPIView # <--- IMPORT NEW VIEW
+)
 from rest_framework.urlpatterns import format_suffix_patterns
 
 urlpatterns = [
@@ -15,6 +21,9 @@ urlpatterns = [
     path('transactions/', TransactionListAPIView.as_view(), name='transaction-list'),
     # Add a detail view for a single transaction if needed:
     # path('transactions/<int:pk>/', TransactionDetailAPIView.as_view(), name='transaction-detail'),
+
+    path('payments/<int:pk>/verify/', PaystackVerifyPaymentAPIView.as_view(), name='paystack-verify-payment'), # <--- ADD THIS LINE
+
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

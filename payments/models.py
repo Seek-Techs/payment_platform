@@ -17,6 +17,13 @@ class Payment(models.Model):
     status = models.CharField(max_length=255, help_text="e.g., 'Pending', 'Approved', 'Rejected', 'Completed'")
     # Add fields for construction context later, e.g., project_id, milestone_id, verified_progress_percentage
 
+    # --- NEW PAYSTACK-RELATED FIELDS ---
+    paystack_reference = models.CharField(max_length=255, blank=True, null=True, unique=True,
+                                          help_text="Paystack transaction reference ID for this payment.")
+    paystack_authorization_url = models.URLField(max_length=500, blank=True, null=True,
+                                                help_text="URL for the user to complete payment on Paystack's gateway.")
+    # --- END NEW FIELDS ---
+
     class Meta:
         verbose_name = "Payment"
         verbose_name_plural = "Payments"
@@ -34,7 +41,8 @@ class Transaction(models.Model):
     transaction_date = models.DateTimeField(auto_now_add=True, help_text="Automatically set to the date and time of transaction creation")
     amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of this specific transaction")
     status = models.CharField(max_length=255, help_text="e.g., 'Initiated', 'Processed', 'Failed', 'Refunded'")
-    # Add fields like transaction_id from a payment gateway here later
+    paystack_charge_id = models.CharField(max_length=255, blank=True, null=True,
+                                          help_text="Paystack Transaction ID associated with this transaction.")
 
     class Meta:
         verbose_name = "Transaction"

@@ -54,8 +54,9 @@ class TransactionSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Transaction
-        fields = ['id', 'amount', 'status', 'transaction_date', 'payment']
-        read_only_fields = ['transaction_date', 'payment']
+        fields = ['id', 'amount', 'status', 'transaction_date', 'payment', 'paystack_charge_id'] # <--- ADD paystack_charge_id
+        read_only_fields = ['transaction_date', 'payment', 'paystack_charge_id']
+
 
 class PaymentSerializer(serializers.ModelSerializer):
     """
@@ -67,8 +68,14 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = ['id', 'user', 'payment_method', 'amount', 'status', 'payment_date', 'transactions']
-        read_only_fields = ['payment_date', 'user', 'status'] # 'user' and 'status' will be set by the view
-
+        fields = [
+            'id', 'user', 'payment_method', 'amount', 'status', 'payment_date',
+            'paystack_reference', 'paystack_authorization_url', # <--- ADD NEW PAYSTACK FIELDS
+            'transactions'
+        ]
+        read_only_fields = [
+            'payment_date', 'user', 'status',
+            'paystack_reference', 'paystack_authorization_url' # <--- Make these read-only as backend sets them
+        ]
     # No custom create method needed here unless you want to handle nested creation directly in serializer
     # The view's perform_create will handle setting 'user' and 'status'.
